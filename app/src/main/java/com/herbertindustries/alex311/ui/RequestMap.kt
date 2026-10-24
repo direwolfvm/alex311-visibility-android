@@ -175,7 +175,11 @@ class TileMapView(context: Context): View(context) {
             paint.color = Color.WHITE; canvas.drawCircle(x, y, if (group.size > 1) 13 * density else 6 * density, paint)
             paint.color = when (colorBy) {
                 "Age" -> when { point.age < 0 -> Color.GRAY; point.age < 30 -> Color.rgb(0, 121, 107); point.age < 90 -> Color.rgb(194, 119, 16); else -> Color.rgb(173, 58, 51) }
-                "Type" -> intArrayOf(0xff006d77.toInt(), 0xff8b5e3c.toInt(), 0xff6554a4.toInt(), 0xffb24d6c.toInt(), 0xff147d92.toInt())[point.category.hashCode().and(Int.MAX_VALUE) % 5]
+                "Type" -> {
+                    val colors = intArrayOf(0xff006d77.toInt(), 0xff8b5e3c.toInt(), 0xff6554a4.toInt(), 0xffb24d6c.toInt(), 0xff147d92.toInt())
+                    val categoryHash = point.category.hashCode() and Int.MAX_VALUE
+                    colors[categoryHash % colors.size]
+                }
                 else -> if (point.status.equals("closed", true)) Color.rgb(61, 126, 106) else if (point.status.equals("open", true)) Color.rgb(206, 116, 31) else Color.GRAY
             }
             canvas.drawCircle(x, y, if (group.size > 1) 11 * density else 4.5f * density, paint)
