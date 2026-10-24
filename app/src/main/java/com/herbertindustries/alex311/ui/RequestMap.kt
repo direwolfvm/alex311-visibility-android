@@ -178,7 +178,7 @@ class TileMapView(context: Context): View(context) {
                 "Type" -> {
                     val colors = intArrayOf(0xff006d77.toInt(), 0xff8b5e3c.toInt(), 0xff6554a4.toInt(), 0xffb24d6c.toInt(), 0xff147d92.toInt())
                     val categoryHash = point.category.hashCode() and Int.MAX_VALUE
-                    colors[categoryHash % colors.size]
+                    colors[Math.floorMod(categoryHash, colors.size)]
                 }
                 else -> if (point.status.equals("closed", true)) Color.rgb(61, 126, 106) else if (point.status.equals("open", true)) Color.rgb(206, 116, 31) else Color.GRAY
             }
