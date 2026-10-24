@@ -165,7 +165,7 @@ class TileMapView(context: Context): View(context) {
         val visible = points.mapNotNull { p ->
             val position = project(Coordinate(p.lat, p.lng))
             val x = (position.first - left).toFloat(); val y = (position.second - top).toFloat()
-            if (x in -20f..width + 20f && y in -20f..height + 20f) Triple(x, y, p) else null
+            if (x in -20f..(width + 20f) && y in -20f..(height + 20f)) Triple(x, y, p) else null
         }
         val grouped = visible.groupBy { (it.first / (28 * density)).toInt() to (it.second / (28 * density)).toInt() }
         val hitTargets = mutableListOf<Hit>()

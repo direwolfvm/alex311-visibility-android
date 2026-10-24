@@ -20,8 +20,6 @@ import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-import java.security.SecureRandom
-import android.util.Base64
 
 class Session(private val context: Context, val api: Api, private val secure: SecureStore) {
     val user = MutableStateFlow<User?>(null)
@@ -73,7 +71,7 @@ class Session(private val context: Context, val api: Api, private val secure: Se
     }
     suspend fun google(activity: Context) {
         require(BuildConfig.GOOGLE_WEB_CLIENT_ID.isNotBlank()) { "Google sign-in is not configured in this build. Use email sign-in." }
-        val nonce = ByteArray(32).also { SecureRandom().nextBytes(it) }.let { Base64.encodeToString(it, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING) }
+        val nonce = SignInNonce.create()
         val option = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID).setNonce(nonce).build()
         val result = try {
             CredentialManager.create(activity).getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(option).build())
