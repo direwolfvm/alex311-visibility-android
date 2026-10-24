@@ -18,9 +18,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" />
+                <data android:host="alex311-reborn.com" />
                 <data android:host="alex311visibility.me" />
                 <data android:pathPrefix="/r/" />
-                <data android:pathPrefix="/submit" />
+                <data android:path="/submit" />
+                <data android:path="/submit/login" />
+                <data android:path="/submit/my" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

@@ -87,13 +87,14 @@ class AppState(application: Application): AndroidViewModel(application) {
         report.seed(service, coordinate, address)
     }
     fun handleLink(raw: String) {
-        val code = Links.oobCode(raw)
-        if (code != null) {
-            session.heldCode = code; account = true
-            if (session.pendingEmail.isNotBlank()) launch { session.completeOob(session.pendingEmail, code); account = false; tab = Tab.MINE }
-            return
-        }
         when (val destination = Links.destination(raw)) {
+            is Links.Destination.SignIn -> {
+                account = true
+                destination.code?.let { code ->
+                    session.heldCode = code
+                    if (session.pendingEmail.isNotBlank()) launch { session.completeOob(session.pendingEmail, code); account = false; tab = Tab.MINE }
+                }
+            }
             is Links.Destination.Case -> openCase(destination.id)
             Links.Destination.Mine -> { cases = emptyList(); tab = Tab.MINE }
             Links.Destination.Report -> startReport()

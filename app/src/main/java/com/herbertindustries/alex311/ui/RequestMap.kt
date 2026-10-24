@@ -17,6 +17,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.herbertindustries.alex311.data.MapPoint
 import com.herbertindustries.alex311.domain.Coordinate
 import com.herbertindustries.alex311.domain.Geo
+import com.herbertindustries.alex311.domain.Links
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -205,7 +206,7 @@ class TileMapView(context: Context): View(context) {
             try {
                 val bitmap = semaphore.withPermit { withContext(Dispatchers.IO) {
                     val request = okhttp3.Request.Builder().url("https://tile.openstreetmap.org/$key.png")
-                        .header("User-Agent", "Alex311RebornAndroid/1.0 (+https://alex311visibility.me)").build()
+                        .header("User-Agent", "Alex311RebornAndroid/1.0 (+${Links.origin})").build()
                     tileClient(context).newCall(request).execute().use { response ->
                         if (response.isSuccessful) response.body?.byteStream()?.use { BitmapFactory.decodeStream(it) } else null
                     }

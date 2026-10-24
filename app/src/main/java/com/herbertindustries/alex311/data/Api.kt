@@ -1,6 +1,7 @@
 package com.herbertindustries.alex311.data
 
 import com.herbertindustries.alex311.domain.RequestFilter
+import com.herbertindustries.alex311.domain.Links
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -73,7 +74,7 @@ class Api(
         require(registry.schema == 1) { "This request registry needs a newer version of the app." }
         return registry to (reply.headers["ETag"] ?: "\"${registry.version}\"")
     }
-    companion object { const val PRODUCTION = "https://alex311visibility.me" }
+    companion object { const val PRODUCTION = Links.origin }
 }
 fun obj(vararg pairs: Pair<String, Any?>): JsonObject = buildJsonObject {
     pairs.forEach { (key, value) -> put(key, when (value) {

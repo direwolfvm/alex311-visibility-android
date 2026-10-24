@@ -1,6 +1,6 @@
 # Alex311 Reborn for Android
 
-Native Kotlin / Jetpack Compose port of the sibling [iOS app](../alex311-visibilit-ios). An unofficial companion to Alexandria, Virginia's Alex311 service, using the existing backend at https://alex311visibility.me.
+Native Kotlin / Jetpack Compose port of the sibling [iOS app](../alex311-visibilit-ios). An unofficial companion to Alexandria, Virginia's Alex311 service, using the existing backend at https://alex311-reborn.com. Links on the former `alex311visibility.me` host remain supported.
 
 ## Run
 
@@ -40,7 +40,7 @@ Unit tests replay all **180 validation fixtures across 30 real services** copied
 
 See [Android setup and parity notes](docs/ANDROID_SETUP.md) for Google OAuth, verified links, push-notification differences, and the remaining device/account acceptance checks.
 
-The production server remains unchanged. Public browsing can be used immediately. The authenticated production flow needs an actual user sign-in for final acceptance; automated filing tests use a local server. Apple sign-in is not ported to a native Android provider button. Email and optionally Google are the Android sign-in methods.
+The production server remains unchanged. Public browsing can be used immediately. The web application's public Google OAuth client ID is configured; Android signing-certificate registration and website App Link association still need completion. The authenticated production flow needs an actual user sign-in for final acceptance; automated filing tests use a local server. Apple sign-in is not ported to a native Android provider button. Email and Google are the Android sign-in methods.
 
 Maps use a native tile view with visible-tile fetching, bounded concurrent requests, an identifiable User-Agent, HTTP disk caching, attribution, pan/pinch/zoom, and clustered markers. OpenStreetMap's public tile service is suitable for development under its [tile usage policy](https://operations.osmfoundation.org/policies/tiles/); assess a production tile service before scaling distribution. There is no offline map download feature.
 
