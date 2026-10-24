@@ -1,0 +1,21 @@
+name: Bug report
+description: Report an Android app problem without sharing private resident information.
+body:
+  - type: input
+    id: device
+    attributes:
+      label: Device, Android version, and app version
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include what you expected and what happened. Remove emails, phone numbers, location history, and tokens from logs or screenshots.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or sanitized logs
+      description: Do not post account credentials or private information. Use private vulnerability reporting for security issues.
