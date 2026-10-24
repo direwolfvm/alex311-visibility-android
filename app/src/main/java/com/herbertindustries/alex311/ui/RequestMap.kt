@@ -6,6 +6,8 @@ import android.util.LruCache
 import android.view.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +29,7 @@ import kotlin.math.*
 
 @Composable fun RequestMap(
     points: List<MapPoint>, modifier: Modifier = Modifier, center: Coordinate = Geo.city,
-    zoom: Int = 13, pin: Coordinate? = null, colorBy: String = "Status",
+    zoom: Int = 13, pin: Coordinate? = null, me: Coordinate? = null, colorBy: String = "Status",
     onCase: (String) -> Unit = {}, onPick: ((Coordinate) -> Unit)? = null,
     onArea: ((List<Coordinate>) -> Unit)? = null
 ) {
@@ -44,12 +46,14 @@ import kotlin.math.*
             view.onPick = { latestPick?.invoke(it) }
             view.onViewport = { bounds = it }
         } }, update = { view ->
-            view.points = points; view.pin = pin; view.colorBy = colorBy; view.selecting = onPick != null
+            view.points = points; view.pin = pin; view.me = me; view.colorBy = colorBy; view.selecting = onPick != null
             view.updateCenter(center, zoom); view.invalidate()
         }, modifier = Modifier.fillMaxSize().clipToBounds())
         Column(Modifier.align(Alignment.TopEnd).padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             FilledTonalButton(onClick = { native?.zoomBy(1) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(44.dp)) { Text("+", style = MaterialTheme.typography.headlineSmall) }
             FilledTonalButton(onClick = { native?.zoomBy(-1) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(44.dp)) { Text("−", style = MaterialTheme.typography.headlineSmall) }
+            // Only pans the view; it never moves a report pin or the Near Me search area.
+            if (me != null) FilledTonalButton(onClick = { native?.panTo(me) }, contentPadding = PaddingValues(0.dp), modifier = Modifier.size(44.dp)) { Icon(Icons.Outlined.MyLocation, "Show my location") }
         }
         if (onArea != null) FilledTonalButton(onClick = { bounds?.let(onArea) }, modifier = Modifier.align(Alignment.TopCenter).padding(8.dp)) { Text("Search this area") }
         TextButton(onClick = { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.openstreetmap.org/copyright"))) },
@@ -62,7 +66,20 @@ import kotlin.math.*
 /** A small native slippy map. Only visible tiles are fetched, using a disk HTTP cache. */
 class TileMapView(context: Context): View(context) {
     var points: List<MapPoint> = emptyList()
+        set(value) {
+            if (value === field) return
+            field = value
+            // Projecting thousands of points is trig-heavy; do it once per data change, not every frame.
+            val xs = DoubleArray(value.size); val ys = DoubleArray(value.size)
+            value.forEachIndexed { i, p -> val m = Geo.mercator(Coordinate(p.lat, p.lng)); xs[i] = m.first; ys[i] = m.second }
+            pointX = xs; pointY = ys
+        }
+    private var pointX = DoubleArray(0)
+    private var pointY = DoubleArray(0)
+    private val tileRect = RectF()
+    private val sourceRect = Rect()
     var pin: Coordinate? = null
+    var me: Coordinate? = null
     var colorBy: String = "Status"
     var selecting = false
     var onCase: (String) -> Unit = {}
@@ -123,11 +140,12 @@ class TileMapView(context: Context): View(context) {
     init { contentDescription = "Map of Alexandria requests. Drag to pan, pinch or use buttons to zoom. Tap a request to open it."; isClickable = true }
     fun setCenter(value: Coordinate, level: Int) { center = value; requestedCenter = value; zoom = level; requestedZoom = level; invalidate(); viewport() }
     fun updateCenter(value: Coordinate, level: Int) { if (requestedCenter != value || requestedZoom != level) setCenter(value, level) }
+    fun panTo(value: Coordinate) { center = value; invalidate(); viewport() }
     fun zoomBy(delta: Int) { zoom = (zoom + delta).coerceIn(10, 18); invalidate(); viewport() }
     private fun project(c: Coordinate): Pair<Double, Double> {
         val world = 256.0 * (1 shl zoom)
-        val lat = Math.toRadians(c.lat.coerceIn(-85.0511, 85.0511))
-        return (c.lng + 180) / 360 * world to (1 - ln(tan(lat) + 1 / cos(lat)) / PI) / 2 * world
+        val m = Geo.mercator(c)
+        return m.first * world to m.second * world
     }
     private fun unproject(x: Double, y: Double): Coordinate {
         val world = 256.0 * (1 shl zoom)
@@ -161,12 +179,15 @@ class TileMapView(context: Context): View(context) {
             if (x !in 0 until (1 shl zoom) || y !in 0 until (1 shl zoom)) continue
             val key = "$zoom/$x/$y"
             val px = (x * 256 - left).toFloat(); val py = (y * 256 - top).toFloat()
-            tiles.get(key)?.let { canvas.drawBitmap(it, null, RectF(px, py, px + 256, py + 256), tilePaint) } ?: fetch(key)
+            tileRect.set(px, py, px + 256, py + 256)
+            val tile = tiles.get(key)
+            if (tile != null) canvas.drawBitmap(tile, null, tileRect, tilePaint)
+            else { drawParent(canvas, x, y); fetch(key) }
         }
-        val visible = points.mapNotNull { p ->
-            val position = project(Coordinate(p.lat, p.lng))
-            val x = (position.first - left).toFloat(); val y = (position.second - top).toFloat()
-            if (x in -20f..(width + 20f) && y in -20f..(height + 20f)) Triple(x, y, p) else null
+        val world = 256.0 * (1 shl zoom)
+        val visible = points.indices.mapNotNull { i ->
+            val x = (pointX[i] * world - left).toFloat(); val y = (pointY[i] * world - top).toFloat()
+            if (x in -20f..(width + 20f) && y in -20f..(height + 20f)) Triple(x, y, points[i]) else null
         }
         val grouped = visible.groupBy { (it.first / (28 * density)).toInt() to (it.second / (28 * density)).toInt() }
         val hitTargets = mutableListOf<Hit>()
@@ -191,6 +212,12 @@ class TileMapView(context: Context): View(context) {
             hitTargets += Hit(x, y, point.id, group.size)
         }
         targets = hitTargets
+        me?.let {
+            val position = project(it); val x = (position.first - left).toFloat(); val y = (position.second - top).toFloat()
+            paint.color = Color.argb(48, 26, 115, 232); canvas.drawCircle(x, y, 16 * density, paint)
+            paint.color = Color.WHITE; canvas.drawCircle(x, y, 8 * density, paint)
+            paint.color = Color.rgb(26, 115, 232); canvas.drawCircle(x, y, 6 * density, paint)
+        }
         pin?.let {
             val position = project(it); val x = (position.first - left).toFloat(); val y = (position.second - top).toFloat()
             paint.color = Color.WHITE; canvas.drawCircle(x, y, 11 * density, paint)
@@ -198,6 +225,18 @@ class TileMapView(context: Context): View(context) {
             paint.color = Color.WHITE; canvas.drawCircle(x, y, 3 * density, paint)
         }
         canvas.restore()
+    }
+    /** While a tile loads, stretch the matching part of a cached lower-zoom tile so zooming never flashes blank. */
+    private fun drawParent(canvas: Canvas, x: Int, y: Int) {
+        for (up in 1..3) {
+            if (zoom - up < 0) return
+            val parent = tiles.get("${zoom - up}/${x shr up}/${y shr up}") ?: continue
+            val span = 256 shr up
+            val sx = (x - ((x shr up) shl up)) * span; val sy = (y - ((y shr up) shl up)) * span
+            sourceRect.set(sx, sy, sx + span, sy + span)
+            canvas.drawBitmap(parent, sourceRect, tileRect, tilePaint)
+            return
+        }
     }
     private fun fetch(key: String) {
         if (key in pending || System.currentTimeMillis() - (failedAt[key] ?: 0) < 30000) return

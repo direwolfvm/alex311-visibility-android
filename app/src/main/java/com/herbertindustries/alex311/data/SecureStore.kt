@@ -14,7 +14,10 @@ import javax.crypto.spec.GCMParameterSpec
 class SecureStore(context: Context) {
     private val prefs = context.getSharedPreferences("secure", Context.MODE_PRIVATE)
     private val alias = "alex311.session.v1"
-    @Synchronized private fun key(): SecretKey {
+    // Loading AndroidKeyStore is a binder round trip; the key handle is safe to reuse.
+    @Volatile private var cached: SecretKey? = null
+    @Synchronized private fun key(): SecretKey = cached ?: loadOrCreate().also { cached = it }
+    private fun loadOrCreate(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey(alias, null) as? SecretKey)?.let { return it }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").apply {

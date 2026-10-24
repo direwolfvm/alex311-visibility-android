@@ -4,6 +4,7 @@ import com.herbertindustries.alex311.domain.RequestFilter
 import com.herbertindustries.alex311.domain.Links
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import okhttp3.*
@@ -54,8 +55,8 @@ class Api(
     suspend fun request(id: String): Request = get("api/request/$id")
     suspend fun points(filter: RequestFilter): List<MapPoint> {
         val response: JsonObject = get("api/points", filter.parameters())
-        val categories = response["categories"]!!.jsonArray.map { it.jsonPrimitive.content }
-        return response["points"]!!.jsonArray.map { row ->
+        val categories = (response["categories"] as? JsonArray ?: throw SerializationException("Map points are missing categories.")).map { it.jsonPrimitive.content }
+        return (response["points"] as? JsonArray ?: throw SerializationException("Map points are missing.")).map { row ->
             val a = row.jsonArray
             MapPoint(a[0].jsonPrimitive.content, a[1].jsonPrimitive.double, a[2].jsonPrimitive.double, a[3].jsonPrimitive.contentOrNull, categories.getOrElse(a[4].jsonPrimitive.int) { "Unknown" }, a[5].jsonPrimitive.int)
         }

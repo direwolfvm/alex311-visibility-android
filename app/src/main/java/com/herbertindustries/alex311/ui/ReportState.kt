@@ -42,10 +42,24 @@ class ReportState(private val app: Alex311Application, private val scope: Corout
     val logic get() = FormLogic(service?.questions ?: emptyList())
     val matches get() = services.filter { "${it.service_name} ${it.keywords.orEmpty()} ${it.description.orEmpty()}".contains(search.trim(), true) }.sortedByDescending { it.coverage?.mined_records ?: 0 }
     val readyLocation get() = draft.coordinate?.let { Geo.inCity(it) } == true
+    private var persistJob: Job? = null
+    private var persistDue = 0L
+    private val persistLock = Any()
     init { draft.pendingAttempt?.let { poll(it) } }
-    private fun save(value: Draft) { draft = value; app.secure.write("draft", WireJson.encodeToString(value)) }
+    /** Writes the newest draft, so writes finishing out of order can never restore an older one. */
+    private fun persist() = synchronized(persistLock) { app.secure.write("draft", WireJson.encodeToString(draft)) }
+    /** Durable save for filing transitions: written before returning. */
+    private fun save(value: Draft) { draft = value; persist() }
+    /** Keystroke-rate edits: Keystore encryption and disk writes are batched off the main thread. */
     fun edit(transform: (Draft) -> Draft) {
-        save(transform(draft)); validation = null; precheck = null; acknowledged = false; error = null
+        draft = transform(draft); validation = null; precheck = null; acknowledged = false; error = null
+        persistDue = System.currentTimeMillis() + 400
+        if (persistJob?.isActive == true) return
+        persistJob = scope.launch {
+            try { while (true) { val wait = persistDue - System.currentTimeMillis(); if (wait <= 0) break; delay(wait) } }
+            // Also runs if the scope is cancelled, so the last edit is not lost when the screen closes.
+            finally { withContext(NonCancellable + Dispatchers.IO) { persist() } }
+        }
     }
     fun step(value: Int) { save(draft.copy(step = value)) }
     fun load() = scope.launch {
@@ -107,11 +121,18 @@ class ReportState(private val app: Alex311Application, private val scope: Corout
             val data = Photos.prepare(app, uri)
             val name = "report-${UUID.randomUUID()}.jpg"
             withContext(Dispatchers.IO) { File(app.filesDir, name).writeBytes(data) }
-            edit { it.copy(photos = it.photos + name) }
+            edit { it.copy(photos = it.photos + name) }; save(draft)
         }
     }
+    // A fixed path, so a capture still lands if the activity is recreated while the camera is open.
+    private val captureFile get() = File(File(app.cacheDir, "camera"), "capture.jpg")
+    fun captureUri(): android.net.Uri {
+        captureFile.parentFile?.mkdirs(); captureFile.delete()
+        return androidx.core.content.FileProvider.getUriForFile(app, "${app.packageName}.photos", captureFile)
+    }
+    fun addCapture(): Job = addPhotos(listOf(android.net.Uri.fromFile(captureFile))).also { it.invokeOnCompletion { captureFile.delete() } }
     fun photoFile(name: String) = File(app.filesDir, name)
-    fun removePhoto(name: String) { edit { it.copy(photos = it.photos - name, uploaded = it.uploaded - name) }; photoFile(name).delete() }
+    fun removePhoto(name: String) { edit { it.copy(photos = it.photos - name, uploaded = it.uploaded - name) }; save(draft); photoFile(name).delete() }
     fun check() = work {
         require(readyLocation) { "Choose a location in Alexandria." }
         require(logic.check(draft.answers).canContinue) { "Complete the required questions before checking." }

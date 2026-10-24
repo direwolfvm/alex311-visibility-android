@@ -120,6 +120,23 @@ class ReportWorkflowTest {
         assertNull(exif.getAttribute(androidx.exifinterface.media.ExifInterface.TAG_GPS_LATITUDE))
         assertEquals(0xff.toByte(), jpeg[0]); assertEquals(0xd8.toByte(), jpeg[1])
     }
+    @Test fun cameraCaptureThroughFileProviderJoinsDraftAndIsDeleted() = runBlocking {
+        withContext(Dispatchers.Main) {
+            val state = ReportState(app, scope, api)
+            val target = state.captureUri()
+            assertEquals("content", target.scheme)
+            val image = android.graphics.Bitmap.createBitmap(640, 480, android.graphics.Bitmap.Config.ARGB_8888)
+            app.contentResolver.openOutputStream(target)!!.use { image.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+            image.recycle()
+            state.addCapture().join()
+            assertNull(state.error)
+            val name = state.draft.photos.single()
+            assertTrue(state.photoFile(name).length() > 0)
+            assertFalse(File(File(app.cacheDir, "camera"), "capture.jpg").exists())
+            state.reset()
+            assertFalse(state.photoFile(name).exists())
+        }
+    }
     @Test fun keystoreRoundTripAndSignOutClearPrivateData() {
         app.secure.write("contact", "private-contact")
         assertEquals("private-contact", app.secure.read("contact"))

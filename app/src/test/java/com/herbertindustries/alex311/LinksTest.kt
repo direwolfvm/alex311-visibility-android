@@ -29,6 +29,12 @@ class LinksTest {
         }
     }
 
+    @Test fun `home screen shortcuts route through the app scheme only`() {
+        assertEquals(Links.Destination.Report, Links.destination("${Links.scheme}://report"))
+        assertEquals(Links.Destination.Nearby, Links.destination("${Links.scheme}://nearby"))
+        origins.forEach { assertNull(Links.destination("$it/nearby")) }
+    }
+
     @Test fun `browser only paths cannot become app routes even with sign in query`() {
         val paths = listOf("/", "/api/requests", "/submit/api/my", "/submit/digest/confirm", "/submit/digest/unsubscribe", "/submit/account", "/submit/admin", "/submit/login/extra", "/submit/my/extra", "/submit/", "/my", "/report")
         origins.forEach { origin ->

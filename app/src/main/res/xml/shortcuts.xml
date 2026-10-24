@@ -1,0 +1,12 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="report" android:enabled="true" android:icon="@drawable/ic_shortcut_report"
+        android:shortcutShortLabel="@string/shortcut_report_short" android:shortcutLongLabel="@string/shortcut_report_long">
+        <intent android:action="android.intent.action.VIEW" android:data="com.herbertindustries.alex311-reborn://report"
+            android:targetPackage="com.herbertindustries.alex311" android:targetClass="com.herbertindustries.alex311.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="nearby" android:enabled="true" android:icon="@drawable/ic_shortcut_nearby"
+        android:shortcutShortLabel="@string/shortcut_nearby_short" android:shortcutLongLabel="@string/shortcut_nearby_long">
+        <intent android:action="android.intent.action.VIEW" android:data="com.herbertindustries.alex311-reborn://nearby"
+            android:targetPackage="com.herbertindustries.alex311" android:targetClass="com.herbertindustries.alex311.MainActivity" />
+    </shortcut>
+</shortcuts>

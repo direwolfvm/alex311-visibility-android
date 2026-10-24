@@ -39,7 +39,7 @@ import kotlinx.serialization.json.*
         listOf("Reported by me" to "mine", "Following" to "following").forEach { (title, relation) ->
             val rows = app.links.filter { if (relation == "mine") it.relation == "mine" else it.relation != "mine" }
             if (rows.isNotEmpty()) item { SectionTitle(title, Modifier.padding(horizontal = 20.dp)) }
-            items(rows, key = { "link-${it.service_request_id}" }) { row -> Box(Modifier.padding(horizontal = 20.dp)) { RequestRow(row, app, changed = app.seen[row.service_request_id] != row.status.orEmpty()) } }
+            items(rows, key = { "link-${it.service_request_id}" }) { row -> Box(Modifier.padding(horizontal = 20.dp)) { RequestRow(row, app, changed = app.changed(row)) } }
         }
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {

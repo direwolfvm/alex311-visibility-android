@@ -1,0 +1,2 @@
+<!-- The camera app writes one capture here; it is re-encoded into the draft and then deleted. -->
+<paths><cache-path name="camera" path="camera/" /></paths>
