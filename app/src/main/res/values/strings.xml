@@ -1,0 +1,6 @@
+<resources>
+    <string name="shortcut_report_short">Report</string>
+    <string name="shortcut_report_long">Report an issue</string>
+    <string name="shortcut_nearby_short">Near me</string>
+    <string name="shortcut_nearby_long">Requests near me</string>
+</resources>

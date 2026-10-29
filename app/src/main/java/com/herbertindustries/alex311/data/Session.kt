@@ -20,6 +20,7 @@ import okhttp3.Request
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 class Session(private val context: Context, val api: Api, private val secure: SecureStore) {
     val user = MutableStateFlow<User?>(null)
@@ -29,6 +30,8 @@ class Session(private val context: Context, val api: Api, private val secure: Se
         get() = prefs.getString("pendingEmail", "").orEmpty()
         set(value) { prefs.edit().putString("pendingEmail", value).apply() }
     var heldCode: String? = null
+    // One pooled client for Identity Toolkit calls instead of a new pool and dispatcher per sign-in step.
+    private val identity by lazy { OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).followRedirects(false).build() }
     init {
         api.sessionToken = secure.read("session")
         api.onUnauthorized = { forget() }
@@ -97,7 +100,7 @@ class Session(private val context: Context, val api: Api, private val secure: Se
             val payload = JsonObject(body + listOfNotNull(config.tenantId?.let { "tenantId" to JsonPrimitive(it) }).toMap())
             val url = "https://identitytoolkit.googleapis.com/v1/accounts:$method".toHttpUrl().newBuilder().addQueryParameter("key", config.apiKey).build()
             val req = Request.Builder().url(url).post(payload.toString().toRequestBody("application/json".toMediaType())).build()
-            OkHttpClient().newCall(req).execute().use { response ->
+            identity.newCall(req).execute().use { response ->
                 val json = WireJson.parseToJsonElement(response.body!!.string()).jsonObject
                 if (!response.isSuccessful) {
                     val code = json["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content.orEmpty().substringBefore(' ')

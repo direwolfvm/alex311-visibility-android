@@ -44,7 +44,7 @@ import com.herbertindustries.alex311.domain.Geo
         }
         item { ErrorRetry(app.nearbyError) { app.loadNearby() } }
         if (app.nearbyMap) item {
-            RequestMap(app.nearby.mapNotNull { row -> row.lat?.let { lat -> row.long?.let { MapPoint(row.service_request_id, lat, it, row.status) } } }, Modifier.fillMaxWidth().height(320.dp), center = app.center, zoom = 16, pin = app.center,
+            RequestMap(app.nearby.mapNotNull { row -> row.lat?.let { lat -> row.long?.let { MapPoint(row.service_request_id, lat, it, row.status) } } }, Modifier.fillMaxWidth().height(320.dp), center = app.center, zoom = 16, pin = app.center.takeIf { it != app.myLocation }, me = app.myLocation,
                 onCase = app::openCase, onPick = { app.center = it; app.hasLocation = true; app.loadNearby() })
         }
         if (app.nearby.isEmpty() && !app.nearbyLoading && app.nearbyError == null) item { EmptyState(Icons.Outlined.CheckCircle, "Nothing reported here", "Try a larger distance or explore the city.") }

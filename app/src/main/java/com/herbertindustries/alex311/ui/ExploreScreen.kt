@@ -38,7 +38,7 @@ import java.util.Locale
             "Map" -> {
                 Row(Modifier.padding(horizontal = 20.dp)) { ChoiceRow(listOf("Status", "Age", "Type"), app.colorBy) { app.colorBy = it } }
                 Text(when (app.colorBy) { "Age" -> "Teal: under 30 days · amber: 30–89 · red: 90+"; "Type" -> "Requests are colored by service type"; else -> "Amber: open · teal: closed · gray: other" }, Modifier.padding(horizontal = 20.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall)
-                RequestMap(app.points, Modifier.fillMaxWidth().weight(1f), colorBy = app.colorBy, onCase = app::openCase, onArea = { app.area = it })
+                RequestMap(app.points, Modifier.fillMaxWidth().weight(1f), me = app.myLocation, colorBy = app.colorBy, onCase = app::openCase, onArea = { app.area = it })
             }
             "List" -> LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item { ChoiceRow(listOf("Newest", "Updated", "Photos", "Type", "Address"), when (app.sort) { "updated" -> "Updated"; "photos" -> "Photos"; "category" -> "Type"; "address" -> "Address"; else -> "Newest" }) {

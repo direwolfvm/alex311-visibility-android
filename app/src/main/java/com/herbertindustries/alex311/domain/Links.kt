@@ -24,6 +24,7 @@ object Links {
         data class SignIn(val code: String?): Destination
         data object Mine: Destination
         data object Report: Destination
+        data object Nearby: Destination
     }
     fun destination(raw: String): Destination? {
         val uri = runCatching { URI(raw) }.getOrNull() ?: return null
@@ -38,6 +39,7 @@ object Links {
             path == "/submit/login" || custom && path == "/signin" -> Destination.SignIn(oobCode(raw))
             path == "/submit/my" || custom && path == "/my" -> Destination.Mine
             path == "/submit" || custom && path == "/report" -> Destination.Report
+            custom && path == "/nearby" -> Destination.Nearby
             else -> null
         }
     }

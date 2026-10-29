@@ -90,7 +90,7 @@ import java.time.LocalTime
             Text("Tap the map to place a pin. The address is looked up in the City's records.", style = MaterialTheme.typography.bodySmall)
         }
         item {
-            RequestMap(emptyList(), Modifier.fillMaxWidth().height(300.dp), center = report.draft.coordinate ?: Geo.city, zoom = 16, pin = report.draft.coordinate, onPick = { if (!report.busy) report.pin(it) })
+            RequestMap(emptyList(), Modifier.fillMaxWidth().height(300.dp), center = report.draft.coordinate ?: Geo.city, zoom = 16, pin = report.draft.coordinate, me = app.myLocation, onPick = { if (!report.busy) report.pin(it) })
         }
         report.draft.coordinate?.let { coordinate -> item {
             Text("${"%.6f".format(java.util.Locale.US, coordinate.lat)}, ${"%.6f".format(java.util.Locale.US, coordinate.lng)}", style = MaterialTheme.typography.labelMedium)
@@ -112,6 +112,7 @@ import java.time.LocalTime
 }
 @Composable private fun DetailsStep(report: ReportState) {
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(3)) { report.addPhotos(it) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved -> if (saved) report.addCapture() }
     val check = report.logic.check(report.draft.answers)
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         report.service?.banners?.forEach { banner -> item { RichText(banner) } }
@@ -121,7 +122,10 @@ import java.time.LocalTime
         item {
             SectionTitle("Photos (${report.draft.photos.size}/3)")
             Text("Photos stay on this device until you send. Location metadata is removed.", style = MaterialTheme.typography.bodySmall)
-            if (report.draft.photos.size < 3) OutlinedButton(onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = !report.busy) { Icon(Icons.Outlined.AddPhotoAlternate, null); Spacer(Modifier.width(8.dp)); Text("Add photos") }
+            if (report.draft.photos.size < 3) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { runCatching { camera.launch(report.captureUri()) }.onFailure { report.error = "No camera app is available. Add a photo from your gallery instead." } }, enabled = !report.busy) { Icon(Icons.Outlined.PhotoCamera, null); Spacer(Modifier.width(8.dp)); Text("Take photo") }
+                OutlinedButton(onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, enabled = !report.busy) { Icon(Icons.Outlined.AddPhotoAlternate, null); Spacer(Modifier.width(8.dp)); Text("Add photos") }
+            }
         }
         items(report.draft.photos, key = { it }) { name ->
             Row(verticalAlignment = Alignment.CenterVertically) {

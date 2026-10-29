@@ -31,6 +31,8 @@ class AppState(application: Application): AndroidViewModel(application) {
     var meta by mutableStateOf<Meta?>(null)
     var center by mutableStateOf(Geo.city)
     var hasLocation by mutableStateOf(false)
+    /** The device's last known position, kept apart from [center], which can be a place picked on the map. */
+    var myLocation by mutableStateOf<Coordinate?>(null)
     var radius by mutableIntStateOf(400)
     var nearbyDays by mutableIntStateOf(30)
     var nearbyOpenOnly by mutableStateOf(false)
@@ -61,7 +63,8 @@ class AppState(application: Application): AndroidViewModel(application) {
     var mineLoading by mutableStateOf(false)
     var mineError by mutableStateOf<String?>(null)
     var seen by mutableStateOf(runCatching { WireJson.decodeFromString<Map<String, String>>(prefs.getString("seenStatuses", "{}").orEmpty()) }.getOrDefault(emptyMap()))
-    val unseenCount: Int get() = links.count { it.service_request_id in seen && seen[it.service_request_id] != it.status.orEmpty() }
+    fun changed(row: Request) = row.service_request_id in seen && seen[row.service_request_id] != row.status.orEmpty()
+    val unseenCount: Int get() = links.count(::changed)
     private var nearJob: Job? = null
     private var exploreJob: Job? = null
     init {
@@ -98,6 +101,7 @@ class AppState(application: Application): AndroidViewModel(application) {
             is Links.Destination.Case -> openCase(destination.id)
             Links.Destination.Mine -> { cases = emptyList(); tab = Tab.MINE }
             Links.Destination.Report -> startReport()
+            Links.Destination.Nearby -> { cases = emptyList(); tab = Tab.NEARBY; if (location.allowed()) locate() }
             null -> Unit
         }
     }
@@ -106,6 +110,7 @@ class AppState(application: Application): AndroidViewModel(application) {
         locating = true
         try {
             val c = location.current() ?: error("Location is unavailable. Enable location in Android Settings or choose a place on the map.")
+            myLocation = c
             if (onLocated != null) onLocated(c) else {
                 center = if (Geo.inCity(c)) c else Geo.city
                 hasLocation = Geo.inCity(c)
@@ -170,6 +175,8 @@ class AppState(application: Application): AndroidViewModel(application) {
 fun parseInstant(raw: String?): Instant? = raw?.let { text -> runCatching { Instant.parse(text) }.getOrNull() ?: runCatching { OffsetDateTime.parse(text).toInstant() }.getOrNull() ?: runCatching { LocalDateTime.parse(text.replace(' ', 'T')).atZone(ZoneId.of("America/New_York")).toInstant() }.getOrNull() ?: runCatching { LocalDate.parse(text).atStartOfDay(ZoneId.of("America/New_York")).toInstant() }.getOrNull() }
 fun friendly(e: Throwable): String = when (e) {
     is java.net.UnknownHostException -> "You're offline. Check your connection and try again."
+    is java.net.ConnectException, is java.net.NoRouteToHostException -> "Couldn't reach the server. Check your connection and try again."
+    is java.net.SocketTimeoutException -> "The server took too long to answer. Try again."
     is kotlinx.serialization.SerializationException -> "The server sent data this version of the app cannot read."
     else -> e.message ?: "Something went wrong. Try again."
 }

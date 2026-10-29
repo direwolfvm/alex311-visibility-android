@@ -16,6 +16,11 @@ object Geo {
         val h = sin(lat / 2).pow(2) + cos(Math.toRadians(a.lat)) * cos(Math.toRadians(b.lat)) * sin(lng / 2).pow(2)
         return 6371000 * 2 * atan2(sqrt(h), sqrt(1 - h.coerceIn(0.0, 1.0)))
     }
+    /** Web Mercator position normalized to 0..1; multiply by the world size in pixels for a zoom level. */
+    fun mercator(c: Coordinate): Pair<Double, Double> {
+        val lat = Math.toRadians(c.lat.coerceIn(-85.0511, 85.0511))
+        return (c.lng + 180) / 360 to (1 - ln(tan(lat) + 1 / cos(lat)) / PI) / 2
+    }
     fun describe(meters: Double): String = if (meters * 3.28084 < 1000) "${(meters * 3.28084 / 10).roundToInt() * 10} ft" else String.format(Locale.US, "%.1f mi", meters / 1609.34)
 }
 data class RequestFilter(val start: String? = null, val end: String? = null, val categories: List<String> = emptyList(), val status: String? = null, val query: String = "", val polygon: List<Coordinate>? = null) {
