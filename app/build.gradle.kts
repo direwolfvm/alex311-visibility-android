@@ -52,14 +52,18 @@ dependencies {
 // Pin transitive dependencies so public CI can audit the exact resolved graph.
 dependencyLocking { lockAllConfigurations() }
 
-// AGP 8.13's device-test runner still requests vulnerable 4.1.x Netty and 3.x
-// Protobuf versions. Keep these binary-compatible security patches scoped to
+// AGP 8.13's device-test runner still requests vulnerable Guava, 4.1.x Netty,
+// and 3.x Protobuf versions. Keep these compatible security patches scoped to
 // UTP tooling; they do not add dependencies to the shipped Android app.
 // Reassess when upgrading AGP; the lockfile audit also covers these configs.
 configurations.configureEach {
     if (name.startsWith("_internal-unified-test-platform")) {
         resolutionStrategy.eachDependency {
             when {
+                requested.group == "com.google.guava" && requested.name == "guava" -> {
+                    useVersion("33.7.2-jre")
+                    because("Fix CVE-2026-102554 in AGP device-test tooling")
+                }
                 requested.group == "io.netty" && requested.version?.startsWith("4.1.") == true -> {
                     useVersion("4.1.139.Final")
                     because("Fix known Netty vulnerabilities in AGP device-test tooling")
