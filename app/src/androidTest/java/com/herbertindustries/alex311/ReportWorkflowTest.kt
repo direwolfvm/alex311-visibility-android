@@ -101,6 +101,23 @@ class ReportWorkflowTest {
             assertFalse(requests.any { it.requestUrl!!.encodedPath == "/submit/api/precheck" })
         }
     }
+    @Test fun editArrivingWhileDraftSaveFinishesIsAlsoSaved() = runBlocking {
+        withContext(Dispatchers.Main) {
+            val state = ReportState(app, scope, api)
+            val prefs = app.getSharedPreferences("secure", 0)
+            // Fires on the main thread after the commit, while the save job's IO write is still returning.
+            val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                if (key == "draft" && state.draft.description == "first") state.edit { it.copy(description = "second") }
+            }
+            prefs.registerOnSharedPreferenceChangeListener(listener)
+            try {
+                state.edit { it.copy(description = "first") }
+                withTimeout(5000) { while (state.draft.description != "second") delay(20) }
+                delay(1000)
+                assertEquals("second", WireJson.decodeFromString<Draft>(app.secure.read("draft")!!).description)
+            } finally { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+        }
+    }
     @Test fun photoPreparationAppliesOrientationScalesAndRemovesMetadata() = runBlocking {
         val file = File(app.filesDir, "report-test-large.jpg")
         val image = android.graphics.Bitmap.createBitmap(4032, 3024, android.graphics.Bitmap.Config.ARGB_8888)

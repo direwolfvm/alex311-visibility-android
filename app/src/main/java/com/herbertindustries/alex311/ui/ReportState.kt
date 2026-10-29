@@ -44,6 +44,7 @@ class ReportState(private val app: Alex311Application, private val scope: Corout
     val readyLocation get() = draft.coordinate?.let { Geo.inCity(it) } == true
     private var persistJob: Job? = null
     private var persistDue = 0L
+    private var editVersion = 0L
     private val persistLock = Any()
     init { draft.pendingAttempt?.let { poll(it) } }
     /** Writes the newest draft, so writes finishing out of order can never restore an older one. */
@@ -53,12 +54,21 @@ class ReportState(private val app: Alex311Application, private val scope: Corout
     /** Keystroke-rate edits: Keystore encryption and disk writes are batched off the main thread. */
     fun edit(transform: (Draft) -> Draft) {
         draft = transform(draft); validation = null; precheck = null; acknowledged = false; error = null
-        persistDue = System.currentTimeMillis() + 400
+        persistDue = System.currentTimeMillis() + 400; editVersion++
         if (persistJob?.isActive == true) return
         persistJob = scope.launch {
-            try { while (true) { val wait = persistDue - System.currentTimeMillis(); if (wait <= 0) break; delay(wait) } }
+            var written = -1L
+            try {
+                // Edits arriving while a write is in flight bump editVersion, so loop until the newest one is on disk.
+                while (written != editVersion) {
+                    while (true) { val wait = persistDue - System.currentTimeMillis(); if (wait <= 0) break; delay(wait) }
+                    val version = editVersion
+                    withContext(Dispatchers.IO) { persist() }
+                    written = version
+                }
+            }
             // Also runs if the scope is cancelled, so the last edit is not lost when the screen closes.
-            finally { withContext(NonCancellable + Dispatchers.IO) { persist() } }
+            finally { if (written != editVersion) withContext(NonCancellable + Dispatchers.IO) { persist() } }
         }
     }
     fun step(value: Int) { save(draft.copy(step = value)) }
